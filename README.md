@@ -4,17 +4,6 @@ This repository contains a modular n8n job-search pipeline built around controll
 
 The system ingests a CV, creates reusable profile variants, discovers jobs, enriches and scores them, pulls hiring contacts, tailors application assets, and sends a final notification when an application package is ready to review.
 
-## Visuals
-
-These diagrams are included in the repo and can be reused in a GitHub README, LinkedIn carousel, or walkthrough:
-
-- `flow-diagrams/job_contacts_extraction.png`
-- `flow-diagrams/company_info_encrichment.png`
-- `flow-diagrams/cv_and_cover_letter_tailoring.png`
-- `flow-diagrams/application_ready_notification.png`
-
-If you want one single visual for a post, use a system overview image first and a results view second.
-
 ## What It Is
 
 - `Workflow 0`: upload a CV, extract structured candidate data, and generate targeted profile variants
@@ -48,7 +37,6 @@ If you want one single visual for a post, use a system overview image first and 
 
 - `workflows/`: main workflow exports
 - `workflows/subflows/`: helper workflow exports used by the main flows
-- `flow-diagrams/`: supporting visual diagrams
 - `scripts/sanitize_n8n_exports.py`: removes private execution data and local identifiers from exported workflows
 
 ## Open Source Status
