@@ -1,0 +1,740 @@
+{
+  "name": "Workflow 4 - Job Fit Scoring",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "job_id"
+            },
+            {
+              "name": "job_description"
+            },
+            {
+              "name": "responsibilities"
+            },
+            {
+              "name": "skills"
+            },
+            {
+              "name": "employment_type"
+            },
+            {
+              "name": "seniority_level"
+            },
+            {
+              "name": "application_type"
+            },
+            {
+              "name": "profile_id"
+            },
+            {
+              "name": "status"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f53d0fc9-22f0-49ad-aa22-ce6799cfe297",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Profile"
+        },
+        "id": "={{ $json.profile_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "a43d84ee-e5e7-436f-8cc5-389ab0838359",
+      "name": "Get \"Profile\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5e754565-3d6c-44e6-a091-e1e55149eeb2",
+              "leftValue": "={{ $json.job_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "400450a3-ae9e-4841-9d53-8480a357bb88",
+              "leftValue": "={{ $json.profile_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "5d077a29-7777-4ee4-98ea-8eae9fab4493",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "DETAILED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "6695d5c5-3136-4ce0-971e-f99a674ec13d",
+              "leftValue": "={{ $json.job_description.length > 500 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0e3a0741-be08-43de-910c-25f4ec5d4c26",
+      "name": "Is Payload Valid?"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Invalid Input: Required fields missing (job_id, profile_id, status, or job_description)"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        416,
+        128
+      ],
+      "id": "c594a82f-a7f6-410d-b453-37e1931d8517",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Score the fit between the following candidate profile and job.\n\nCandidate profile:\n{{ JSON.stringify($json) }}\n\nJob data:\n{{ JSON.stringify($('Is Payload Valid?').item.json) }}\n\nReturn structured JSON following the schema exactly.\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a deterministic job-to-profile scoring engine.\n\nYour task is to evaluate how well a candidate profile matches a job.\n\nYou must compare only the information explicitly present in:\n\t•\tThe job input\n\t•\tThe profile input\n\nYou must not:\n\t•\tInfer missing experience\n\t•\tAssume unstated skills\n\t•\tFabricate alignment\n\t•\tFill gaps using external knowledge\n\t•\tUpgrade unclear matches into strong matches\n\nIf information is not explicitly stated, treat it as absent.\n\n⸻\n\nSCORING PRINCIPLES\n\nPrimary factors (highest influence):\n\t•\tOverlap between explicitly required job skills and explicitly listed profile skills\n\t•\tExplicit technical stack alignment\n\t•\tSeniority compatibility when clearly stated\n\nModerate influence:\n\t•\tDomain alignment when explicitly stated\n\t•\tResponsibilities alignment when directly supported by profile evidence\n\nLower influence:\n\t•\tLocation compatibility\n\t•\tPreference alignment\n\nHeavy penalties:\n\t•\tMissing explicitly required core skills\n\t•\tClear seniority mismatch\n\t•\tExplicit visa incompatibility\n\nRequired skills and seniority alignment must influence the score more than preferences.\n\nScores must be conservative and defensible.\n\n⸻\n\nVISA LOGIC\n\nvisa_block must be true only if:\n\t•\tThe job explicitly states no sponsorship\n\t•\tOr there is clear legal incompatibility\n\nIf sponsorship is not mentioned:\n\t•\tvisa_block = false\n\t•\tvisa_risk = “unclear”\n\nvisa_risk must reflect explicit information only.\n\n⸻\n\nSCORING BEHAVIOR\n\t•\toverall_fit_score must reflect total weighted alignment.\n\t•\tskill_alignment_score must reflect only skill overlap strength.\n\t•\tScores must remain within the 0 to 1 range.\n\t•\tUse decimals.\n\t•\tBe conservative rather than optimistic.\n\t•\tDo not inflate moderate matches into strong matches.\n\nIf alignment is unclear, score lower rather than higher.\n\nBe strict.\nBe literal.\nBe defensible.\nDo not hallucinate.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        800,
+        -16
+      ],
+      "id": "853187df-ad2a-42a8-8a49-fb3562f52c86",
+      "name": "Score Job Fit"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Jobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Is Payload Valid?').item.json.job_id }}",
+            "Status": "={{ $json.job_status }}",
+            "Visa Block": "={{ $json.output.visa_block }}",
+            "Skill Alignment Score": "={{ $json.output.skill_alignment_score }}",
+            "Overall Fit Score": "={{ $json.output.overall_fit_score }}",
+            "Scoring Reason": "={{ $json.output.scoring_reason }}",
+            "Visa Risk": "={{ $json.output.visa_risk }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Profile",
+              "displayName": "Profile",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Linkedin",
+                  "value": "Linkedin"
+                },
+                {
+                  "name": "Indeed",
+                  "value": "Indeed"
+                },
+                {
+                  "name": "Company Career Page",
+                  "value": "Company Career Page"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "LISTED",
+                  "value": "LISTED"
+                },
+                {
+                  "name": "DETAILED",
+                  "value": "DETAILED"
+                },
+                {
+                  "name": "SCORED",
+                  "value": "SCORED"
+                },
+                {
+                  "name": "REJECTED",
+                  "value": "REJECTED"
+                },
+                {
+                  "name": "COMPANY_ENRICHED",
+                  "value": "COMPANY_ENRICHED"
+                },
+                {
+                  "name": "CONTACTS_FOUND",
+                  "value": "CONTACTS_FOUND"
+                },
+                {
+                  "name": "TAILORED",
+                  "value": "TAILORED"
+                },
+                {
+                  "name": "READY_TO_APPLY",
+                  "value": "READY_TO_APPLY"
+                },
+                {
+                  "name": "APPLIED",
+                  "value": "APPLIED"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Responsibilities",
+              "displayName": "Responsibilities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Employment Type",
+              "displayName": "Employment Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Seniority Level",
+              "displayName": "Seniority Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Type",
+              "displayName": "Application Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "EASY_APPLY",
+                  "value": "EASY_APPLY"
+                },
+                {
+                  "name": "EXTERNAL",
+                  "value": "EXTERNAL"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Link",
+              "displayName": "Application Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder ID",
+              "displayName": "Google Drive Folder ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder Link",
+              "displayName": "Google Drive Folder Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Overall Fit Score",
+              "displayName": "Overall Fit Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skill Alignment Score",
+              "displayName": "Skill Alignment Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Visa Risk",
+              "displayName": "Visa Risk",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Visa Block",
+              "displayName": "Visa Block",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Scoring Reason",
+              "displayName": "Scoring Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1520,
+        -16
+      ],
+      "id": "c3c53591-7970-446d-ba33-7cfd870ddd9b",
+      "name": "Update \"Job\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        256
+      ],
+      "id": "5f19d4b5-ee9d-4fee-bd1d-3d66a0fc2496",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "<redacted>",
+          "name": "openAiApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"overall_fit_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    },\n    \"skill_alignment_score\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    },\n    \"visa_risk\": {\n      \"type\": \"string\",\n      \"enum\": [\"none\", \"moderate\", \"high\", \"unclear\"]\n    },\n    \"visa_block\": {\n      \"type\": \"boolean\"\n    },\n    \"scoring_reason\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"overall_fit_score\",\n    \"skill_alignment_score\",\n    \"visa_risk\",\n    \"visa_block\",\n    \"scoring_reason\"\n  ],\n  \"additionalProperties\": false\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        176
+      ],
+      "id": "c8b036f2-d043-406a-b1f6-7436425cfc6f",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff1c4c44-5c59-4e61-bd41-743180faa72c",
+              "name": "job_status",
+              "value": "={{\n  $json.output.visa_block\n    ? \"REJECTED\"\n    : (\n        !$json.output.visa_block &&\n        (\n          $json.output.skill_alignment_score >= 0.55\n          ||\n          (\n            $json.output.overall_fit_score >= 0.6 &&\n            $json.output.skill_alignment_score >= 0.45\n          )\n        )\n      )\n        ? \"SCORED\"\n        : \"REJECTED\"\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        -16
+      ],
+      "id": "5292040f-f914-4241-aabd-348c7b35b15c",
+      "name": "Resolve Job Status"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Is Payload Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"Profile\" Record": {
+      "main": [
+        [
+          {
+            "node": "Score Job Fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Payload Valid?": {
+      "main": [
+        [
+          {
+            "node": "Get \"Profile\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Job Fit": {
+      "main": [
+        [
+          {
+            "node": "Resolve Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Score Job Fit",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Score Job Fit",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Job Status": {
+      "main": [
+        [
+          {
+            "node": "Update \"Job\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "<redacted>",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "<redacted>"
+  },
+  "id": "iKftmVRav0t117ai",
+  "tags": []
+}

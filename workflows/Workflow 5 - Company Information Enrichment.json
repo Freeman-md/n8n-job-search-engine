@@ -1,0 +1,936 @@
+{
+  "name": "Workflow 5 - Company Information Enrichment",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "job_id"
+            },
+            {
+              "name": "company_id"
+            },
+            {
+              "name": "company_name"
+            },
+            {
+              "name": "job_title"
+            },
+            {
+              "name": "job_url"
+            },
+            {
+              "name": "job_folder_id"
+            },
+            {
+              "name": "status"
+            },
+            {
+              "name": "location"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3fb33f31-5d2b-4ea9-9b42-f3d1399a3f7b",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.error }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        416,
+        128
+      ],
+      "id": "5d1cabd5-4a41-4f90-9a4b-1540c8d53ea3",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const errors = [];\n\nconst item = $input.first().json;\n\nif (item.status !== \"SCORED\") {\n  errors.push(\"Job Status must be SCORED\");\n}\n\nif (!item.company_id) {\n  errors.push(\"Missing company_id\");\n}\n\nif (!item.job_folder_id) {\n  errors.push(\"Missing job_folder_id\");\n}\n\nif (errors.length > 0) {\n  throw new Error(`Validation Failed: ${errors.join(\" | \")}`);\n}\n\nreturn $input.first();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d6f04f4c-3a75-4e9b-82d0-0c6f03996b05",
+      "name": "Validate Inputs",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Research the following company in the context of this job:\n\nCompany Name: {{ $json.company_name }}\nJob Title: {{ $json.job_title }}\nLocation: {{ $json.location }}\n\nProvide structured company intelligence that would support a strong job application."
+            },
+            {
+              "role": "system",
+              "content": "You are a deterministic company intelligence research engine.\n\nYour task is to produce a structured company intelligence report for a given company and job context. The output will be stored as a structured file and partially written to a database.\n\nYou must strictly follow the provided JSON schema.\n\n⸻\n\nHard Constraints (Mandatory)\n\t•\tOutput MUST be valid JSON only.\n\t•\tDo NOT include markdown.\n\t•\tDo NOT include commentary outside JSON.\n\t•\tDo NOT include explanations.\n\t•\tDo NOT invent or fabricate information.\n\t•\tDo NOT infer beyond verifiable public information.\n\t•\tIf any field cannot be confidently determined, return null.\n\t•\tKeep summaries concise, factual, and neutral.\n\t•\tAvoid speculative, promotional, or motivational language.\n\t•\tDo not generate interview advice.\n\t•\tDo not generate generic statements.\n\t•\tDo not fabricate sources.\n\t•\tIf recent highlights cannot be verified within the last 12 months, return null.\n\nYou must remain factual and restrained.\n\n⸻\n\nResearch Scope (All Sections Required)\n\n1. Company Overview\n\nProvide:\n\t•\tConcise factual description of what the company does\n\t•\tCore products or services\n\t•\tBusiness model\n\t•\tHeadquarters location\n\t•\tApproximate company size (if publicly available)\n\t•\tMission or positioning statement (only if explicitly stated publicly)\n\nIf any field cannot be verified, return null.\n\n⸻\n\n2. Market & Competitive Context\n\nProvide:\n\t•\tIndustry classification\n\t•\tUp to three primary competitors (if identifiable)\n\t•\tBrief market positioning summary\n\t•\tRelevant industry trends currently affecting the company\n\nDo not speculate.\n\nIf competitors cannot be confidently identified, return null.\n\n⸻\n\n3. Recent Verified Highlights (Preferably Last 12 Months)\n\nInclude:\n\t•\tProduct launches\n\t•\tAcquisitions\n\t•\tLeadership changes\n\t•\tStrategic announcements\n\t•\tEarnings updates\n\nEach highlight must include:\n\t•\tHeadline\n\t•\tConcise summary\n\t•\tSource name or domain\n\nIf recency cannot be verified, return null.\n\nDo not fabricate timelines.\n\n⸻\n\n4. Culture & Operating Style (High-Level Only)\n\nProvide:\n\t•\tObservable work style indicators (e.g., engineering-led, research-focused, product-driven)\n\t•\tPublicly stated values or principles (if available)\n\nDo not include interview preparation content.\nDo not extrapolate internal culture.\n\nIf not publicly stated, return null.\n\n⸻\n\n5. Strategic Talking Points\n\nReturn 3–5 concise bullet-style strings suitable for:\n\t•\tCover letters\n\t•\tNetworking outreach\n\t•\tRecruiter conversations\n\nThese must:\n\t•\tBe factual\n\t•\tReference real company attributes\n\t•\tAvoid generic praise\n\t•\tAvoid motivational framing\n\n⸻\n\n6. Sources\n\nReturn a list of source names or domains used.\n\nExamples:\n\t•\tCompany website\n\t•\tPress releases\n\t•\tReputable news outlets\n\t•\tRegulatory filings\n\nDo not fabricate links.\nDo not include URLs if uncertain.\n\n⸻\n\nBe factual.\nBe concise.\nBe structured.\nNo hallucination.\nStrict JSON compliance required.\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "output",
+              "schema": "{\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"company_name\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"overview\": {\n      \"type\": [\"object\", \"null\"],\n      \"additionalProperties\": false,\n      \"properties\": {\n        \"description\": { \"type\": [\"string\", \"null\"] },\n        \"core_products_or_services\": {\n          \"type\": [\"array\", \"null\"],\n          \"items\": { \"type\": \"string\" }\n        },\n        \"business_model\": { \"type\": [\"string\", \"null\"] },\n        \"headquarters\": { \"type\": [\"string\", \"null\"] },\n        \"company_size\": { \"type\": [\"string\", \"null\"] },\n        \"mission_or_positioning\": { \"type\": [\"string\", \"null\"] }\n      },\n      \"required\": [\n        \"description\",\n        \"core_products_or_services\",\n        \"business_model\",\n        \"headquarters\",\n        \"company_size\",\n        \"mission_or_positioning\"\n      ]\n    },\n    \"market_context\": {\n      \"type\": [\"object\", \"null\"],\n      \"additionalProperties\": false,\n      \"properties\": {\n        \"industry\": { \"type\": [\"string\", \"null\"] },\n        \"primary_competitors\": {\n          \"type\": [\"array\", \"null\"],\n          \"items\": { \"type\": \"string\" }\n        },\n        \"market_positioning\": { \"type\": [\"string\", \"null\"] },\n        \"relevant_industry_trends\": {\n          \"type\": [\"array\", \"null\"],\n          \"items\": { \"type\": \"string\" }\n        }\n      },\n      \"required\": [\n        \"industry\",\n        \"primary_competitors\",\n        \"market_positioning\",\n        \"relevant_industry_trends\"\n      ]\n    },\n    \"recent_highlights\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"headline\": { \"type\": [\"string\", \"null\"] },\n          \"summary\": { \"type\": [\"string\", \"null\"] },\n          \"source\": { \"type\": [\"string\", \"null\"] }\n        },\n        \"required\": [\"headline\", \"summary\", \"source\"]\n      }\n    },\n    \"culture_summary\": {\n      \"type\": [\"object\", \"null\"],\n      \"additionalProperties\": false,\n      \"properties\": {\n        \"work_style\": { \"type\": [\"string\", \"null\"] },\n        \"stated_values_or_principles\": {\n          \"type\": [\"array\", \"null\"],\n          \"items\": { \"type\": \"string\" }\n        }\n      },\n      \"required\": [\"work_style\", \"stated_values_or_principles\"]\n    },\n    \"strategic_talking_points\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": { \"type\": \"string\" }\n    },\n    \"sources\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": { \"type\": \"string\" }\n    }\n  },\n  \"required\": [\n    \"company_name\",\n    \"overview\",\n    \"market_context\",\n    \"recent_highlights\",\n    \"culture_summary\",\n    \"strategic_talking_points\",\n    \"sources\"\n  ]\n}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        416,
+        -96
+      ],
+      "id": "1f908ca8-0a58-4740-81b0-61b10d7e291d",
+      "name": "Company Intelligence Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "<redacted>",
+          "name": "openAiApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ensure the model response completed successfully\n\nconst response = $input.first().json.output[0];\n\nif (!response) {\n  throw new Error(\"AI response missing output array.\");\n}\n\nif (response.status !== \"completed\") {\n  throw new Error(`AI response status invalid. Expected \"completed\" but got \"${response.status}\".`);\n}\n\nconst content = response.content?.[0];\n\nif (!content || !content.text) {\n  throw new Error(\"AI response missing text payload.\");\n}\n\n// Return only the structured job object\nreturn [\n  {\n    json: content.text\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -96
+      ],
+      "id": "e5f32e4d-c40e-463a-bbb7-29587b66d92f",
+      "name": "Validate AI Response & Unwrap Payload",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.error }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        928,
+        80
+      ],
+      "id": "f1469196-976d-435e-909b-07ba8ad176dd",
+      "name": "Stop and Error2"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Companies"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Validate Inputs').item.json.company_id }}",
+            "Headquarters": "={{ $json.overview.headquarters }}",
+            "Industry": "={{ $json.market_context.industry }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Headquarters",
+              "displayName": "Headquarters",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Jobs",
+              "displayName": "Jobs",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Linkedin URL",
+              "displayName": "Linkedin URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1184,
+        80
+      ],
+      "id": "d324d641-132f-41fb-95f0-c7949c6021db",
+      "name": "Update \"Company\" Record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------- Input ----------\nconst jobId = $('Validate Inputs').first().json.job_id;\nconst jobTitle = $('Validate Inputs').first().json.job_title;\nconst companyName = $('Validate Inputs').first().json.company_name;\n\nconst data = $input.first().json;\n\n// ---------- Helpers ----------\n\nfunction section(title) {\n  return `\\n${title}\\n${\"-\".repeat(title.length)}\\n`;\n}\n\nfunction list(arr) {\n  if (!arr || !Array.isArray(arr) || arr.length === 0) return \"Not available\\n\";\n  return arr.map(item => `- ${item}`).join(\"\\n\") + \"\\n\";\n}\n\nfunction value(v) {\n  return v ? `${v}\\n` : \"Not available\\n\";\n}\n\n// ---------- Build Document ----------\n\nlet content = \n`COMPANY INTELLIGENCE SNAPSHOT\n----------------------------------------\nCOMPANY: ${companyName}\nRELATED JOB: ${jobTitle}\nJOB ID: ${jobId}\n----------------------------------------\\n`;\n\n// Overview\ncontent += section(\"OVERVIEW\");\ncontent += `Description:\\n${value(data.overview?.description)}\\n`;\ncontent += `Core Products / Services:\\n${list(data.overview?.core_products_or_services)}\\n`;\ncontent += `Business Model:\\n${value(data.overview?.business_model)}\\n`;\ncontent += `Headquarters:\\n${value(data.overview?.headquarters)}\\n`;\ncontent += `Company Size:\\n${value(data.overview?.company_size)}\\n`;\ncontent += `Mission / Positioning:\\n${value(data.overview?.mission_or_positioning)}\\n`;\n\n// Market Context\ncontent += section(\"MARKET CONTEXT\");\ncontent += `Industry:\\n${value(data.market_context?.industry)}\\n`;\ncontent += `Primary Competitors:\\n${list(data.market_context?.primary_competitors)}\\n`;\ncontent += `Market Positioning:\\n${value(data.market_context?.market_positioning)}\\n`;\ncontent += `Relevant Industry Trends:\\n${list(data.market_context?.relevant_industry_trends)}\\n`;\n\n// Recent Highlights\ncontent += section(\"RECENT HIGHLIGHTS\");\ncontent += data.recent_highlights && data.recent_highlights.length\n  ? data.recent_highlights.map(h =>\n      `- ${h.headline}\\n  ${h.summary}\\n  Source: ${h.source}`\n    ).join(\"\\n\\n\") + \"\\n\"\n  : \"Not available\\n\";\n\n// Culture\ncontent += section(\"CULTURE SUMMARY\");\ncontent += `Work Style:\\n${value(data.culture_summary?.work_style)}\\n`;\ncontent += `Stated Values / Principles:\\n${list(data.culture_summary?.stated_values_or_principles)}\\n`;\n\n// Strategic Talking Points\ncontent += section(\"STRATEGIC TALKING POINTS\");\ncontent += list(data.strategic_talking_points);\n\n// Sources\ncontent += section(\"SOURCES\");\ncontent += list(data.sources);\n\n// ---------- Output ----------\n\nreturn [\n  {\n    json: {\n      job_id: jobId,\n      file_type: \"company_info\",\n      file_name: `Company_Info.txt`,\n      content\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -112
+      ],
+      "id": "7bca139d-6e9e-4d4c-8202-a0cf4410eb96",
+      "name": "Structure Company Info Document"
+    },
+    {
+      "parameters": {
+        "operation": "createFromText",
+        "content": "={{ $json.content }}",
+        "name": "={{ $json.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "b5de8458-80d7-446d-b6ff-8ecc5e9adcdb",
+      "name": "Create Company File Snapshot",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1424,
+        -112
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "<redacted>",
+          "name": "googleDriveOAuth2Api credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "File URL": "={{ `https://drive.google.com/file/d/${$json.id}/view` }}",
+            "File Type": "company_info",
+            "Job": "=[\"{{ $('Validate Inputs').item.json.job_id }}\"]",
+            "File ID": "={{ $json.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "File ID",
+              "displayName": "File ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Job",
+              "displayName": "Job",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File URL",
+              "displayName": "File URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File Type",
+              "displayName": "File Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "cv_info",
+                  "value": "cv_info"
+                },
+                {
+                  "name": "cover_letter_info",
+                  "value": "cover_letter_info"
+                },
+                {
+                  "name": "profile_info",
+                  "value": "profile_info"
+                },
+                {
+                  "name": "company_info",
+                  "value": "company_info"
+                },
+                {
+                  "name": "job_info",
+                  "value": "job_info"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1648,
+        -112
+      ],
+      "id": "819317ac-0981-4133-a9cf-b13b580849a7",
+      "name": "Create \"Document\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Jobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Validate Inputs').item.json.job_id }}",
+            "Status": "COMPANY_ENRICHED"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Profile",
+              "displayName": "Profile",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Linkedin",
+                  "value": "Linkedin"
+                },
+                {
+                  "name": "Indeed",
+                  "value": "Indeed"
+                },
+                {
+                  "name": "Company Career Page",
+                  "value": "Company Career Page"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "LISTED",
+                  "value": "LISTED"
+                },
+                {
+                  "name": "DETAILED",
+                  "value": "DETAILED"
+                },
+                {
+                  "name": "SCORED",
+                  "value": "SCORED"
+                },
+                {
+                  "name": "REJECTED",
+                  "value": "REJECTED"
+                },
+                {
+                  "name": "COMPANY_ENRICHED",
+                  "value": "COMPANY_ENRICHED"
+                },
+                {
+                  "name": "CONTACTS_FOUND",
+                  "value": "CONTACTS_FOUND"
+                },
+                {
+                  "name": "TAILORED",
+                  "value": "TAILORED"
+                },
+                {
+                  "name": "READY_TO_APPLY",
+                  "value": "READY_TO_APPLY"
+                },
+                {
+                  "name": "APPLIED",
+                  "value": "APPLIED"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Responsibilities",
+              "displayName": "Responsibilities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Employment Type",
+              "displayName": "Employment Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Seniority Level",
+              "displayName": "Seniority Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Type",
+              "displayName": "Application Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Link",
+              "displayName": "Application Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder ID",
+              "displayName": "Google Drive Folder ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder Link",
+              "displayName": "Google Drive Folder Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Overall Fit Score",
+              "displayName": "Overall Fit Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Skill Alignment Score",
+              "displayName": "Skill Alignment Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Risk",
+              "displayName": "Visa Risk",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Block",
+              "displayName": "Visa Block",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Scoring Reason",
+              "displayName": "Scoring Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1856,
+        -112
+      ],
+      "id": "5aa9b39c-9b75-48bf-8d1b-86d13502c39a",
+      "name": "Update \"Job\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "Company Intelligence Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate AI Response & Unwrap Payload": {
+      "main": [
+        [
+          {
+            "node": "Structure Company Info Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Intelligence Agent": {
+      "main": [
+        [
+          {
+            "node": "Validate AI Response & Unwrap Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Company Info Document": {
+      "main": [
+        [
+          {
+            "node": "Create Company File Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create \"Document\" Record": {
+      "main": [
+        [
+          {
+            "node": "Update \"Job\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Company File Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Create \"Document\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "<redacted>",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "<redacted>"
+  },
+  "id": "xyB7pYTZuvj66vuP",
+  "tags": []
+}

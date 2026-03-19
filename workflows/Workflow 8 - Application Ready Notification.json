@@ -1,0 +1,901 @@
+{
+  "name": "Workflow 8 - Application Ready Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "job_id"
+            },
+            {
+              "name": "status"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d1de5172-0579-428d-b668-8ec44f300cab",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const errors = [];\n\nconst item = $input.first().json;\n\nif (item.status !== \"TAILORED\") {\n  errors.push(\"Job Status must be TAILORED\");\n}\n\nif (!item.job_id) {\n  errors.push(\"Missing job_id\");\n}\n\nif (errors.length > 0) {\n  throw new Error(`Validation Failed: ${errors.join(\" | \")}`);\n}\n\nreturn $input.first();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b1a62be5-0aaf-454a-82f3-157baa32fca7",
+      "name": "Validate Inputs",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.error }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        368,
+        320
+      ],
+      "id": "53bf7ad0-4005-4ee6-8026-f2f4e27100bb",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "filterByFormula": "=AND(\n  {Job ID} = \"{{ $json.job_id }}\",\n  {File Type} = \"cv_info\"\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        -192
+      ],
+      "id": "f790a5f4-db06-4b30-9524-4460ebddc53d",
+      "name": "Get \"CV Info\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "filterByFormula": "=AND(\n  {Job ID} = \"{{ $json.job_id }}\",\n  {File Type} = \"cover_letter_info\"\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        -16
+      ],
+      "id": "bc7cf801-a4fe-450c-8ebf-fb56c29e4b02",
+      "name": "Get \"Cover Letter Info\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b54c5074-33fc-4264-b49e-644dcf8a1ce2",
+              "name": "cv_link",
+              "value": "={{ $json[\"File URL\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        -192
+      ],
+      "id": "aec0c03d-e6e2-4e95-8ba9-458a6b253ae5",
+      "name": "Set CV Link"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b54c5074-33fc-4264-b49e-644dcf8a1ce2",
+              "name": "cover_letter_link",
+              "value": "={{ $json[\"File URL\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        -16
+      ],
+      "id": "6f4e00c7-522b-45c0-b927-a8b69e2bff76",
+      "name": "Set Cover Letter Link"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d64ad567-7b4e-4249-8c36-7654bba0676c",
+              "leftValue": "={{ $json.cv_link }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "4e2b7300-ef19-4e44-ac2a-4f695b52cdfd",
+              "leftValue": "={{ $json.cover_letter_link }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "301084b9-ffb9-4619-b935-ac475a22c956",
+              "leftValue": "={{ $json.Title }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c7aa4049-231c-4f18-b62a-f8776e681eb1",
+              "leftValue": "={{ $json[\"Job Link\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ddf20776-6589-4f82-9f63-978951162d77",
+              "leftValue": "={{ $json[\"Overall Fit Score\"] }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1168,
+        -16
+      ],
+      "id": "cac49b2b-3273-442b-9bb5-499dc3a158c5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Missing Documents"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        176
+      ],
+      "id": "6e31e459-b17d-488d-8c68-2d8da49d3da2",
+      "name": "Stop and Error1"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Jobs"
+        },
+        "id": "={{ $json.job_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        160
+      ],
+      "id": "551cd437-59c5-4d21-a803-59cb268100e0",
+      "name": "Get \"Job\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "includeOtherFields": true,
+        "include": "selected",
+        "includeFields": "Title, Location, [\"Job Link\"], [\"Overall Fit Score\"], [\"Company Name\"][0], [\"Visa Risk\"], [\"Application Type\"]",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        160
+      ],
+      "id": "673fc231-b8cf-4c1c-a34f-e7d26997e404",
+      "name": "Extract Necessary Job Fields"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        -32
+      ],
+      "id": "ffc36fc5-f013-48c0-9384-bd4dd5e77d04",
+      "name": "Merge Job Info, CV and Cover Letter Links"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "job-engine-actions"
+        },
+        "messageType": "block",
+        "blocksUi": "={{\n(() => {\n  const score = Number($json[\"Overall Fit Score\"]);\n  let label = \"⚪ Low-Fit Job\";\n\n  if (score >= 0.8) label = \"🔥 High-Fit Job\";\n  else if (score >= 0.6) label = \"🟡 Medium-Fit Job\";\n\n  const company = Array.isArray($json[\"Company Name\"])\n    ? $json[\"Company Name\"][0]\n    : $json[\"Company Name\"];\n\n  return {\n    blocks: [\n      {\n        type: \"section\",\n        text: {\n          type: \"mrkdwn\",\n          text:\n            `${label} (${score.toFixed(2)})\\n\\n` +\n            `*Role:* ${$json[\"Title\"]}\\n` +\n            `*Company:* ${company}\\n` +\n            `*Location:* ${$json[\"Location\"]}\\n` +\n            `*Visa Risk:* ${$json[\"Visa Risk\"]}\\n` +\n            `*Application Type:* ${$json[\"Application Type\"]}`\n        }\n      },\n      { type: \"divider\" },\n      {\n        type: \"section\",\n        text: {\n          type: \"mrkdwn\",\n          text: \"*Quick Links*\"\n        }\n      },\n      {\n        type: \"actions\",\n        elements: [\n          {\n            type: \"button\",\n            text: {\n              type: \"plain_text\",\n              text: \"Apply\",\n              emoji: true\n            },\n            url: $json[\"Job Link\"],\n            style: \"primary\",\n            value: \"apply_job\"\n          },\n          {\n            type: \"button\",\n            text: {\n              type: \"plain_text\",\n              text: \"View CV\",\n              emoji: true\n            },\n            url: $json[\"cv_link\"],\n            value: \"view_cv\"\n          },\n          {\n            type: \"button\",\n            text: {\n              type: \"plain_text\",\n              text: \"View Cover Letter\",\n              emoji: true\n            },\n            url: $json[\"cover_letter_link\"],\n            value: \"view_cover_letter\"\n          }\n        ]\n      }\n    ]\n  };\n})()\n}}",
+        "text": "={{ (() => {\n  const score = Number($json[\"Overall Fit Score\"]);\n  let label = \"⚪ Low-Fit Job\";\n\n  if (score >= 0.8) label = \"🔥 High-Fit Job\";\n  else if (score >= 0.6) label = \"🟡 Medium-Fit Job\";\n\n  const title = $json[\"Title\"] || \"Unknown Role\";\n  const location = ($json[\"Location\"] || \"\").split(\",\")[0];\n\n  return `${label} (${score.toFixed(2)}) — ${title} | ${location}`;\n})() }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1392,
+        -32
+      ],
+      "id": "63d5e0ba-a4a1-4e0c-bb1f-5efaa097b3da",
+      "name": "Send a message",
+      "webhookId": "<redacted>",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "<redacted>",
+          "name": "slackOAuth2Api credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Jobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Validate Inputs').item.json.job_id }}",
+            "Status": "READY_TO_APPLY"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Profile",
+              "displayName": "Profile",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Linkedin",
+                  "value": "Linkedin"
+                },
+                {
+                  "name": "Indeed",
+                  "value": "Indeed"
+                },
+                {
+                  "name": "Company Career Page",
+                  "value": "Company Career Page"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "LISTED",
+                  "value": "LISTED"
+                },
+                {
+                  "name": "DETAILED",
+                  "value": "DETAILED"
+                },
+                {
+                  "name": "SCORED",
+                  "value": "SCORED"
+                },
+                {
+                  "name": "REJECTED",
+                  "value": "REJECTED"
+                },
+                {
+                  "name": "COMPANY_ENRICHED",
+                  "value": "COMPANY_ENRICHED"
+                },
+                {
+                  "name": "CONTACTS_FOUND",
+                  "value": "CONTACTS_FOUND"
+                },
+                {
+                  "name": "TAILORED",
+                  "value": "TAILORED"
+                },
+                {
+                  "name": "READY_TO_APPLY",
+                  "value": "READY_TO_APPLY"
+                },
+                {
+                  "name": "APPLIED",
+                  "value": "APPLIED"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Responsibilities",
+              "displayName": "Responsibilities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Employment Type",
+              "displayName": "Employment Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Seniority Level",
+              "displayName": "Seniority Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Type",
+              "displayName": "Application Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Link",
+              "displayName": "Application Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder ID",
+              "displayName": "Google Drive Folder ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder Link",
+              "displayName": "Google Drive Folder Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Overall Fit Score",
+              "displayName": "Overall Fit Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Skill Alignment Score",
+              "displayName": "Skill Alignment Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Risk",
+              "displayName": "Visa Risk",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Block",
+              "displayName": "Visa Block",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Scoring Reason",
+              "displayName": "Scoring Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1616,
+        -32
+      ],
+      "id": "c55d6095-0b26-4a83-8f87-73791c88a240",
+      "name": "Update \"Job\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "Get \"CV Info\" Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get \"Cover Letter Info\" Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get \"Job\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"CV Info\" Record": {
+      "main": [
+        [
+          {
+            "node": "Set CV Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"Cover Letter Info\" Record": {
+      "main": [
+        [
+          {
+            "node": "Set Cover Letter Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set CV Link": {
+      "main": [
+        [
+          {
+            "node": "Merge Job Info, CV and Cover Letter Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Cover Letter Link": {
+      "main": [
+        [
+          {
+            "node": "Merge Job Info, CV and Cover Letter Links",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"Job\" Record": {
+      "main": [
+        [
+          {
+            "node": "Extract Necessary Job Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Necessary Job Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge Job Info, CV and Cover Letter Links",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Job Info, CV and Cover Letter Links": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update \"Job\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "<redacted>",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "<redacted>"
+  },
+  "id": "kRMnEpr5BIeZlPZ1",
+  "tags": []
+}

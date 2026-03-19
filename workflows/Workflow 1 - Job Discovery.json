@@ -1,0 +1,1056 @@
+{
+  "name": "Workflow 1 - Job Discovery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                2,
+                1,
+                3,
+                4,
+                5
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -864,
+        16
+      ],
+      "id": "f4b7364e-166b-43af-8b79-044a3a4d4b0e",
+      "name": "Trigger – Weekday Run"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Profile"
+        },
+        "filterByFormula": "{Is Active} = TRUE()",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -672,
+        16
+      ],
+      "id": "796ece7f-792b-48db-a4d3-94ac15361f64",
+      "name": "Load Active Profiles",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const profiles = $input.all();\nconst today = $('Trigger – Weekday Run').first().json[\"Day of week\"];\n\n// Map weekdays to index 0-4\nconst dayMap = {\n  \"Monday\": 0,\n  \"Tuesday\": 1,\n  \"Wednesday\": 2,\n  \"Thursday\": 3,\n  \"Friday\": 4,\n  \"Saturday\": 1,\n  \"Sunday\": 0\n};\n\nconst index = dayMap[today] % profiles.length;\n\nreturn [profiles[index]];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        16
+      ],
+      "id": "54275a83-32a4-44fc-90eb-378351cf56af",
+      "name": "Select Profile for Today"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6802ab59-37ea-4f66-9cf1-4c8c76615f81",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -272,
+        16
+      ],
+      "id": "4db3ac76-dd86-4fc8-be68-14c94081fb65",
+      "name": "Verify Profile Exists"
+    },
+    {
+      "parameters": {
+        "errorMessage": "No active user profile found for today. Workflow terminated."
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        288
+      ],
+      "id": "ddc62bf6-d8b9-41e6-a0f4-41af9fa0c371",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Companies"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.company.name }}",
+            "Industry": "={{ $json.company.industries.map(industry => industry.title).join(\", \").concat(\", \").concat($json.company.specialities.join(\", \")) }}",
+            "Linkedin URL": "={{ $json.company.linkedinUrl }}",
+            "Headquarters": "={{\n  (() => {\n    const companyLocations = $json.company?.locations || [];\n    const headquartersLocation = companyLocations.find(location => location.headquarter === true);\n\n    if (!headquartersLocation) return null;\n\n    const addressLine1 = headquartersLocation.line1 || \"\";\n    const addressLine2 = headquartersLocation.line2 || \"\";\n    const city = headquartersLocation.city || \"\";\n    const postalCode = headquartersLocation.postalCode || \"\";\n    const country = headquartersLocation.parsed?.countryFull || \"\";\n\n    return [\n      addressLine1,\n      addressLine2,\n      city,\n      postalCode,\n      country\n    ]\n      .filter(Boolean)\n      .join(\", \");\n  })()\n}}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Headquarters",
+              "displayName": "Headquarters",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Jobs",
+              "displayName": "Jobs",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Linkedin URL",
+              "displayName": "Linkedin URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1376,
+        160
+      ],
+      "id": "ef7483c0-6c24-4d0b-8024-100c56e4feb9",
+      "name": "Create \"Company\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Jobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Source": "Linkedin",
+            "Job Link": "={{ $json.linkedinUrl }}",
+            "Location": "={{ $json.location.parsed.text }}",
+            "Title": "={{ $json.title }}",
+            "Company": "=[\"{{ $json.company_id }}\"]",
+            "Status": "LISTED",
+            "Profile": "=[\"{{ $('Verify Profile Exists').item.json.id }}\"]",
+            "Application Link": "={{ $json.applyMethod.companyApplyUrl }}",
+            "Job Description": "={{ $json.descriptionText }}",
+            "Employment Type": "={{ $json.employmentType }}",
+            "Seniority Level": "={{ $json.experienceLevel }}",
+            "Application Type": "={{ $json.applyMethod.companyApplyUrl ? \"EXTERNAL\" : \"EASY_APPLY\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Profile",
+              "displayName": "Profile",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Linkedin",
+                  "value": "Linkedin"
+                },
+                {
+                  "name": "Indeed",
+                  "value": "Indeed"
+                },
+                {
+                  "name": "Company Career Page",
+                  "value": "Company Career Page"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "LISTED",
+                  "value": "LISTED"
+                },
+                {
+                  "name": "DETAILED",
+                  "value": "DETAILED"
+                },
+                {
+                  "name": "SCORED",
+                  "value": "SCORED"
+                },
+                {
+                  "name": "REJECTED",
+                  "value": "REJECTED"
+                },
+                {
+                  "name": "COMPANY_ENRICHED",
+                  "value": "COMPANY_ENRICHED"
+                },
+                {
+                  "name": "CONTACTS_FOUND",
+                  "value": "CONTACTS_FOUND"
+                },
+                {
+                  "name": "TAILORED",
+                  "value": "TAILORED"
+                },
+                {
+                  "name": "READY_TO_APPLY",
+                  "value": "READY_TO_APPLY"
+                },
+                {
+                  "name": "APPLIED",
+                  "value": "APPLIED"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Responsibilities",
+              "displayName": "Responsibilities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Employment Type",
+              "displayName": "Employment Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Seniority Level",
+              "displayName": "Seniority Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Application Type",
+              "displayName": "Application Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Application Link",
+              "displayName": "Application Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Google Drive Folder ID",
+              "displayName": "Google Drive Folder ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder Link",
+              "displayName": "Google Drive Folder Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Overall Fit Score",
+              "displayName": "Overall Fit Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Skill Alignment Score",
+              "displayName": "Skill Alignment Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Risk",
+              "displayName": "Visa Risk",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Block",
+              "displayName": "Visa Block",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Scoring Reason",
+              "displayName": "Scoring Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Company Linkedin URL",
+              "displayName": "Company Linkedin URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Created time",
+              "displayName": "Created time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Status Changed At",
+              "displayName": "Status Changed At",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2352,
+        16
+      ],
+      "id": "3f75701f-383b-4d61-becf-4f54c6abdda3",
+      "name": "Create \"Job\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "advanced": true,
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "company.name",
+              "field2": "company_name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2144,
+        16
+      ],
+      "id": "570777ea-95d1-4fef-8636-6c6b7fe4d772",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4a7d1660-ec0f-46a9-90e2-57ea4b135b2b",
+              "name": "company_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "5a3c57b5-6442-4adc-9888-ef74caba0a36",
+              "name": "company_name",
+              "value": "={{ $json.fields.Name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1584,
+        160
+      ],
+      "id": "a636e2e1-bf8f-4a62-8089-4a6f7efbc8dd",
+      "name": "Enrich Airtable Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Extract job_id from URL - handles multiple URL formats\nfunction extractJobId(url) {\n  if (!url) return null;\n  \n  // Match the numeric ID at the end of the job view path\n  const match = url.match(/jobs\\/view\\/[^?]*?-(\\d+)(?:[?\\/]|$)/);\n  return match ? match[1] : null;\n}\n\n// Step 1: Attach job_id to each item\nconst withIds = items.map(item => {\n  item.json.job_id = extractJobId(item.json.linkedinUrl);\n  return item;\n});\n\n// Step 2: Deduplicate — keep FIRST occurrence of each job_id\nconst seen = new Map();\n\nfor (const item of withIds) {\n  const id = item.json.job_id;\n  \n  // Fallback key for items with no extractable ID: use full URL stripped of query params\n  const key = id ?? (item.json.linkedinUrl?.split('?')[0] ?? JSON.stringify(item.json));\n  \n  if (!seen.has(key)) {\n    seen.set(key, item);\n  }\n}\n\nreturn Array.from(seen.values());"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "9c276de4-0a7f-4226-9ef8-2f7c630dee46",
+      "name": "Deduplicate Jobs"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "<link-this-workflow>",
+          "mode": "list",
+          "cachedResultName": "OpenAI Response Validator & Payload Extractor"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        336,
+        0
+      ],
+      "id": "803ae85d-fe46-4f95-b4e8-101dd6dea223",
+      "name": "Validate & Extract Payload"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "search_configs",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        544,
+        0
+      ],
+      "id": "45758d69-366f-4ebd-95cb-af6c29c24d79",
+      "name": "Split Out Job Configs"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "zn01OAlzP853oqn4Z",
+          "mode": "list",
+          "cachedResultName": "Advanced Linkedin Job Scraper (No Cookies) (harvestapi/linkedin-job-search)"
+        },
+        "customBody": "={{ JSON.stringify($json) }}"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ],
+      "id": "df07cd0b-e9c2-407c-8cde-bb61d4aa2b07",
+      "name": "Fetch Jobs based on Configs",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 3,
+      "credentials": {
+        "apifyApi": {
+          "id": "<redacted>",
+          "name": "apifyApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Deduplicate by company_id\n\nconst seenCompanyIds = new Set();\nconst uniqueItems = [];\n\nfor (const item of $input.all()) {\n  const companyId = item.json.company_id;\n\n  if (!seenCompanyIds.has(companyId)) {\n    seenCompanyIds.add(companyId);\n    uniqueItems.push(item);\n  }\n}\n\nreturn uniqueItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        160
+      ],
+      "id": "6382ef6b-bb2f-4199-abf7-6548c63fc678",
+      "name": "Deduplicate Companies"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Construct 2–3 LinkedIn job search configurations for the candidate profile below.\n\nCANDIDATE_PROFILE:\n{{ JSON.stringify($json) }}\n\nReturn valid JSON only, matching the required output schema exactly."
+            },
+            {
+              "role": "system",
+              "content": "You are a deterministic LinkedIn job search configuration engine.\n\nYour task is to generate structured JSON input for the Apify actor `harvestapi/linkedin-job-search` based strictly on the candidate profile provided in the user message.\n\nThe profile is the single source of truth.\n\nAll role framing and search bias must be derived dynamically from the profile.\n\nImportant actor behavior:\n- This actor supports multiple job titles and multiple locations for mass scraping.\n- `maxItems` is the maximum number of jobs scraped per search query.\n- Total raw result upper bound is therefore:\n  sum(jobTitles.length × locations.length × maxItems) across all configurations.\n\nWe are optimising for:\n1. Long-term engineering leverage\n2. Balanced result volume and alignment\n3. Slight stretch positioning where defensible\n4. United Kingdom only\n5. Real LinkedIn-supported search filters only\n6. Hard upstream volume control\n\nOUTPUT FORMAT RULES\n\n- Output valid JSON only\n- No explanations\n- No markdown\n- No extra fields\n- Output an object with:\n  - `board_name`\n  - `search_configs`\n- `board_name` must be `\"linkedin\"`\n- `search_configs` must contain exactly 2 configurations\n- Each configuration must contain exactly 1 job title\n- Each configuration must contain exactly 1 location\n- Each configuration must contain `maxItems = 7`\n- Total raw result upper bound across both configurations must not exceed 14\n- Each configuration must use `postedLimit = either \"1h\" or \"24h\"`\n- The first configuration must use `postedLimit = \"24h\"`\n- The second configuration must use `postedLimit = \"1h\"`\n- The second configuration must use `under10Applicants = true`\n- `easyApply` must always be false\n- Each configuration must use `employmentType = [\"full-time\"]`\n- Industry IDs must always be [\"4\",\"5\",\"6\"]\n- `sortBy` must always be `\"date\"`\n- Do not use `\"week\"` or `\"month\"`\n\nSUPPORTED FIELDS\n\nEach configuration may only include:\n- `jobTitles` (array of strings, exactly 1 item)\n- `locations` (array of UK strings, exactly 1 item)\n- `employmentType` (array)\n- `under10Applicants` (boolean)\n- `easyApply` (boolean)\n- `industryIds` (array)\n- `postedLimit` (string)\n- `sortBy` (string)\n- `maxItems` (number)\n\nDo not include `experienceLevel`.\nDo not include `workplaceType`.\nDo not invent additional fields.\n\nLOCATION RULES\n\n- Only UK locations\n- Extract the strongest city-level UK location from the profile when available\n- Use `\"United Kingdom\"` only if no useful UK city can be extracted or if a broader fallback is clearly justified\n- Ignore non-UK locations\n\nSTRATEGIC STRUCTURE\n\nGenerate exactly 2 configurations:\n\n1. Core Alignment Configuration\n- Highest-probability role framing\n- Strongest explicit profile alignment\n- `postedLimit = \"24h\"`\n\n2. Early Signal Configuration\n- Slightly broader but still defensible adjacent framing\n- `under10Applicants = true`\n- `postedLimit = \"1h\"`\n\nThe two configurations must use different job titles.\n\nDo not multiply breadth by adding extra titles or locations.\nUse role framing carefully within the fixed volume budget.\n\nOptimise for result quality within a hard cap, not raw surface area.\n\nBe deterministic.\nBe minimal.\nBe strict.\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "output",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"board_name\": {\n      \"type\": \"string\",\n      \"enum\": [\"linkedin\"]\n    },\n    \"search_configs\": {\n      \"type\": \"array\",\n      \"minItems\": 2,\n      \"maxItems\": 2,\n      \"items\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"jobTitles\": {\n            \"type\": \"array\",\n            \"minItems\": 1,\n            \"maxItems\": 1,\n            \"items\": { \"type\": \"string\" }\n          },\n          \"locations\": {\n            \"type\": \"array\",\n            \"minItems\": 1,\n            \"maxItems\": 1,\n            \"items\": { \"type\": \"string\" }\n          },\n          \"employmentType\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"enum\": [\"full-time\"]\n            }\n          },\n          \"under10Applicants\": { \"type\": \"boolean\" },\n          \"easyApply\": { \"type\": \"boolean\" },\n          \"industryIds\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\",\n              \"enum\": [\"4\", \"5\", \"6\"]\n            }\n          },\n          \"postedLimit\": {\n            \"type\": \"string\",\n            \"enum\": [\"1h\", \"24h\"]\n          },\n          \"sortBy\": {\n            \"type\": \"string\",\n            \"enum\": [\"date\"]\n          },\n          \"maxItems\": {\n            \"type\": \"number\",\n            \"enum\": [7]\n          }\n        },\n        \"required\": [\n          \"jobTitles\",\n          \"locations\",\n          \"employmentType\",\n          \"under10Applicants\",\n          \"easyApply\",\n          \"industryIds\",\n          \"postedLimit\",\n          \"sortBy\",\n          \"maxItems\"\n        ]\n      }\n    }\n  },\n  \"required\": [\"board_name\", \"search_configs\"],\n  \"additionalProperties\": false\n}\n",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "bdfce169-2485-4b06-a78d-25231e8c1ca4",
+      "name": "Search Construction Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "<redacted>",
+          "name": "openAiApi credential"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger – Weekday Run": {
+      "main": [
+        [
+          {
+            "node": "Load Active Profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Profile for Today": {
+      "main": [
+        [
+          {
+            "node": "Verify Profile Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Profile Exists": {
+      "main": [
+        [
+          {
+            "node": "Search Construction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Active Profiles": {
+      "main": [
+        [
+          {
+            "node": "Select Profile for Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create \"Company\" Record": {
+      "main": [
+        [
+          {
+            "node": "Enrich Airtable Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create \"Job\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Airtable Result": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Jobs": {
+      "main": [
+        [
+          {
+            "node": "Create \"Company\" Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Extract Payload": {
+      "main": [
+        [
+          {
+            "node": "Split Out Job Configs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out Job Configs": {
+      "main": [
+        [
+          {
+            "node": "Fetch Jobs based on Configs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Jobs based on Configs": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Companies": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Search Construction Agent": {
+      "main": [
+        [
+          {
+            "node": "Validate & Extract Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "<redacted>",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "<redacted>"
+  },
+  "id": "gt6Q2u9df6kDTt9f",
+  "tags": []
+}

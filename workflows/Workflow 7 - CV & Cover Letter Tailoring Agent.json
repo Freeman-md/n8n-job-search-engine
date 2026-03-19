@@ -1,0 +1,1519 @@
+{
+  "name": "Workflow 7 - CV & Cover Letter Tailoring Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "job_id"
+            },
+            {
+              "name": "company_id"
+            },
+            {
+              "name": "status"
+            },
+            {
+              "name": "profile_id"
+            },
+            {
+              "name": "job_folder_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        128
+      ],
+      "id": "5348dbc1-cd8e-4f0c-a3ed-7e8348220954",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.error }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        704,
+        496
+      ],
+      "id": "2c76c6d6-7f1c-41d5-b5f0-08edbcdd5735",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const errors = [];\n\nconst item = $input.first().json;\n\nif (item.status !== \"CONTACTS_FOUND\") {\n  errors.push(\"Job Status must be CONTACTS_FOUND\");\n}\n\nif (!item.company_id) {\n  errors.push(\"Missing company_id\");\n}\n\nif (!item.job_id) {\n  errors.push(\"Missing job_id\");\n}\n\nif (!item.job_folder_id) {\n  errors.push(\"Missing job_folder_id\");\n}\n\nif (!item.profile_id) {\n  errors.push(\"Missing profile_id\");\n}\n\nif (errors.length > 0) {\n  throw new Error(`Validation Failed: ${errors.join(\" | \")}`);\n}\n\nreturn $input.first();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        128
+      ],
+      "id": "d209970d-4dfc-494b-8e66-de0ccd68a217",
+      "name": "Validate Inputs",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Profile"
+        },
+        "id": "={{ $json.profile_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        704,
+        288
+      ],
+      "id": "3cd6a705-c925-4075-b288-81d742c5fc70",
+      "name": "Get \"Profile\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "<link-this-workflow>",
+          "mode": "list",
+          "cachedResultName": "Google Drive File Content Retrieval"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_id": "={{ $json[\"Main CV File ID\"] }}"
+          },
+          "matchingColumns": [
+            "file_id"
+          ],
+          "schema": [
+            {
+              "id": "file_id",
+              "displayName": "file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        288
+      ],
+      "id": "9229bf05-c8ef-445b-b34b-79cdbb9cd3ff",
+      "name": "Retrieve Main CV Info"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1520,
+        96
+      ],
+      "id": "be335232-21fd-407b-a7f0-4a064eba74ca",
+      "name": "Merge Job, Company and CV Info"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are provided three labeled text sections.\n\nUse them strictly as follows:\n\t•\tJOB_INFO: used to understand role requirements.\n\t•\tCOMPANY_INFO: used to understand company positioning.\n\t•\tMAIN_CV: the only source of factual experience.\n\nDo not assume ordering.\n\n⸻\n\nJOB_INFO:\n{{ $json.job_info }}\n\n⸻\n\nCOMPANY_INFO:\n{{ $json.company_info }}\n\n⸻\n\nMAIN_CV:\n{{ $json.main_cv_info }}\n\n⸻\n\nGenerate the tailored CV in structured JSON format only.\n\n⸻\n"
+            },
+            {
+              "role": "system",
+              "content": "You are a strategic CV positioning engine.\n\nYour task is to generate a high-impact, strongly aligned CV structure using ONLY the labeled input sections provided in the user message:\n\n• JOB_INFO\n• COMPANY_INFO\n• MAIN_CV\n\nEach section will be explicitly labeled in the input text.\nYou must identify them by label and ignore ordering.\n\nYour objective is to strategically position the candidate as a strong, high-confidence match for the role while preserving complete factual accuracy.\n\nYou must maximize alignment without fabricating experience.\n\n⸻\n\nCore Strategy\n\nThe system has already determined the candidate is a fit.\nYour job is not to be conservative.\nYour job is to:\n\n• Surface transferable strengths\n• Reframe experience using role-aligned terminology\n• Highlight engineering maturity\n• Emphasize scalability, production thinking, reliability, collaboration and impact\n• Reflect company themes without copying marketing language\n\nYou must confidently position the candidate as capable of operating in the target environment based on transferable and adjacent experience.\n\n⸻\n\nHard Constraints\n\n• Output MUST be valid JSON only.\n• Do NOT include markdown.\n• Do NOT include explanations outside JSON.\n• Do NOT invent new experiences, tools, metrics, or achievements.\n• Do NOT fabricate years of experience.\n• Do NOT introduce new quantified results.\n• If a bullet contains numbers, percentages, financial values, or measurable outcomes in MAIN_CV, those MUST be preserved exactly.\n• You may rephrase wording, but numerical values must remain unchanged.\n• You may reframe experience using stronger engineering language.\n• You may elevate system design, reliability, scalability, automation, DevOps, collaboration, or architecture themes where truthful.\n• You may convert passive descriptions into impact-driven engineering statements.\n• You may highlight adjacent exposure (e.g., ML modules, automation, monitoring, CI/CD, APIs) where factually supported.\n• Do NOT fabricate domain familiarity.\n\n⸻\n\nWhat You Must Not Do\n\n• Do not claim direct experience with technologies not present in MAIN_CV.\n• Do not inject company marketing slogans.\n• Do not overstate AI, ML, LLM, or consulting experience beyond what is supported.\n• Do not weaken measurable impact.\n\n⸻\n\nTailoring Logic (Aggressive Alignment Mode)\n\t1.\tExtract required capabilities from JOB_INFO.\n\t2.\tExtract engineering and cultural themes from COMPANY_INFO.\n\t3.\tIdentify transferable capabilities in MAIN_CV.\n\t4.\tReframe bullets to emphasize:\n\t•\tProduction readiness\n\t•\tScalability\n\t•\tObservability\n\t•\tReliability\n\t•\tEngineering rigor\n\t•\tCollaboration with stakeholders\n\t•\tCross-functional problem solving\n\t•\tAutomation and systems thinking\n\t5.\tAlign terminology with JOB_INFO where truthful.\n\t6.\tSurface technical breadth if role expects full-stack or cross-domain capability.\n\t7.\tKeep professional_summary maximum 4 lines.\n\t8.\tLimit skills to maximum 4 strategic categories.\n\t9.\tRemove clearly irrelevant technologies only if they do not contain measurable impact.\n\n⸻\n\nMetric Preservation Rule\n\nIf MAIN_CV contains measurable outcomes (revenue, %, scale, volume, savings, latency, performance improvements), those must remain unchanged unless the entire bullet is removed.\n\nPartial metric removal is not allowed.\n\n⸻\n\nTone\n\nConfident.\nTechnically mature.\nProduction-focused.\nEngineering-led.\nStrategic but factual.\n\nThe candidate should read as capable of operating in a high-performance engineering environment.\n\n⸻\n\nReturn structured JSON matching the schema exactly."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "output",
+              "schema": "{\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"full_name\": { \"type\": [\"string\", \"null\"] },\n    \"contact_information\": { \"type\": [\"string\", \"null\"] },\n    \"professional_summary\": { \"type\": [\"string\", \"null\"] },\n    \"education\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": { \"type\": \"string\" }\n    },\n    \"employment_history\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"job_title\": { \"type\": [\"string\", \"null\"] },\n          \"company_and_location\": { \"type\": [\"string\", \"null\"] },\n          \"dates\": { \"type\": [\"string\", \"null\"] },\n          \"responsibilities\": {\n            \"type\": [\"array\", \"null\"],\n            \"items\": { \"type\": \"string\" }\n          }\n        },\n        \"required\": [\n          \"job_title\",\n          \"company_and_location\",\n          \"dates\",\n          \"responsibilities\"\n        ]\n      }\n    },\n    \"awards_and_achievements\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": { \"type\": \"string\" }\n    },\n    \"skills\": {\n      \"type\": [\"array\", \"null\"],\n      \"items\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"properties\": {\n          \"category\": { \"type\": [\"string\", \"null\"] },\n          \"items\": {\n            \"type\": [\"array\", \"null\"],\n            \"items\": { \"type\": \"string\" }\n          }\n        },\n        \"required\": [\"category\", \"items\"]\n      }\n    }\n  },\n  \"required\": [\n    \"full_name\",\n    \"contact_information\",\n    \"professional_summary\",\n    \"education\",\n    \"employment_history\",\n    \"awards_and_achievements\",\n    \"skills\"\n  ]\n}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1808,
+        112
+      ],
+      "id": "01315c11-ba27-467b-9a32-8ae759ba7a59",
+      "name": "CV Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "<redacted>",
+          "name": "openAiApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "filterByFormula": "=AND(\n  {Job ID} = \"{{ $json.job_id }}\",\n  {File Type} = \"job_info\"\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        704,
+        -64
+      ],
+      "id": "45f4c8b8-e0f5-499f-bc5f-02c900b89712",
+      "name": "Get \"Job Info\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "filterByFormula": "=AND(\n  {Job ID} = \"{{ $json.job_id }}\",\n  {File Type} = \"company_info\"\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        704,
+        112
+      ],
+      "id": "a1d83267-9453-4407-bc7e-45492b2f9a17",
+      "name": "Get \"Company Info\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "<link-this-workflow>",
+          "mode": "list",
+          "cachedResultName": "Google Drive File Content Retrieval"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_id": "={{ $json[\"File ID\"] }}"
+          },
+          "matchingColumns": [
+            "file_id"
+          ],
+          "schema": [
+            {
+              "id": "file_id",
+              "displayName": "file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        -64
+      ],
+      "id": "d2449f22-77ab-42ec-8080-4fb0fb335f2b",
+      "name": "Retrieve Job Info"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "<link-this-workflow>",
+          "mode": "list",
+          "cachedResultName": "Google Drive File Content Retrieval"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_id": "={{ $json[\"File ID\"] }}"
+          },
+          "matchingColumns": [
+            "file_id"
+          ],
+          "schema": [
+            {
+              "id": "file_id",
+              "displayName": "file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        112
+      ],
+      "id": "08f520d9-9aca-48fd-b16e-7b96d6d3b7cf",
+      "name": "Retrieve Company Info"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2c4ad022-4b28-4cde-9094-c836c9bcbc3c",
+              "name": "job_info",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        -64
+      ],
+      "id": "c0e28018-bb94-4d09-87f4-38ead422088c",
+      "name": "Set Job Info"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2c4ad022-4b28-4cde-9094-c836c9bcbc3c",
+              "name": "company_info",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        112
+      ],
+      "id": "c832feac-77e6-402d-a5fb-ba20a06da59e",
+      "name": "Set Company Info"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0f98c291-9da6-4533-8fa3-9e950a386840",
+              "name": "main_cv_info",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1168,
+        288
+      ],
+      "id": "df563ce3-0772-43e5-98cc-006689ce283a",
+      "name": "Set Main CV Info"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=JOB_INFO\n{{ $('Merge Job, Company and CV Info').item.json.job_info }}\n\nCOMPANY_INFO\n{{ $('Merge Job, Company and CV Info').item.json.company_info }}\n\nTAILORED_CV\n{{ JSON.stringify($json) }}"
+            },
+            {
+              "role": "system",
+              "content": "You are a deterministic cover letter generation engine.\n\nYour task is to generate a tailored cover letter using ONLY the labeled input sections provided in the user message:\n\n• JOB_INFO\n• COMPANY_INFO\n• TAILORED_CV\n\nEach section will be explicitly labeled in the input text.\nYou must identify them by label and ignore ordering.\n\nGoal:\nWrite a cover letter that strongly aligns the candidate’s real experience (TAILORED_CV) to the role requirements (JOB_INFO) and the company context (COMPANY_INFO).\n\nHard constraints (mandatory):\n- Output MUST be valid JSON only.\n- Do NOT include markdown.\n- Do NOT include commentary outside JSON.\n- Do NOT invent experience, tools, achievements, or metrics.\n- Do NOT fabricate years of experience.\n- Do NOT introduce new quantified results.\n- Any numbers, percentages, financial values, or measurable outcomes present in TAILORED_CV must be preserved exactly if used.\n- Do NOT claim company-specific work unless it is explicitly supported by the input.\n- Do NOT restate the entire CV.\n\nWriting constraints:\n- 300 to 450 words.\n- 4 to 5 paragraphs maximum.\n- Professional, confident, direct. Not dramatic.\n- Do NOT use em dashes.\n- Avoid buzzwords, corporate clichés, and “I am passionate about”.\n\nStrategy:\n1) Opening paragraph:\n   - State interest in the role.\n   - Mention 1 specific company theme from COMPANY_INFO (only if present).\n   - Avoid generic intro lines.\n2) Core alignment (2 paragraphs max):\n   - Select 2 to 3 strongest overlaps between JOB_INFO and TAILORED_CV.\n   - Tie each overlap to a real responsibility or skill explicitly present in JOB_INFO.\n   - Use the job’s terminology where truthful and supported by TAILORED_CV.\n3) Differentiation:\n   - Show domain understanding using only JOB_INFO + COMPANY_INFO language.\n   - Emphasize execution, reliability, engineering maturity, and delivery habits if supported by TAILORED_CV.\n4) Closing:\n   - Reinforce fit and readiness.\n   - Clear call to action (interview).\n   - Do not mention visas unless JOB_INFO explicitly mentions it or the user included it in inputs.\n\nAdopt a confident, technically mature, production-focused tone. Write like a strong engineer who ships and can operate in a high-performance environment. Keep it crisp, specific, and credible.\n\nOutput:\nReturn structured JSON matching the provided schema exactly."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "output",
+              "schema": "{\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"full_name\": { \"type\": \"string\" },\n    \"company_name\": { \"type\": \"string\" },\n    \"job_title\": { \"type\": \"string\" },\n    \"cover_letter_text\": { \"type\": \"string\" },\n    \"key_alignment_points\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    }\n  },\n  \"required\": [\n    \"full_name\",\n    \"company_name\",\n    \"job_title\",\n    \"cover_letter_text\",\n    \"key_alignment_points\"\n  ]\n}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        2352,
+        112
+      ],
+      "id": "3193c7e9-c993-4c75-9eca-b05f3785f1b1",
+      "name": "Cover Letter Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "<redacted>",
+          "name": "openAiApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "<link-this-workflow>",
+          "mode": "list",
+          "cachedResultName": "OpenAI Response Validator & Payload Extractor"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2704,
+        112
+      ],
+      "name": "Validate & Extract Cover Letter Info",
+      "id": "ad690006-298b-4cf4-8f2a-c46bc653778a"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "<link-this-workflow>",
+          "mode": "list",
+          "cachedResultName": "OpenAI Response Validator & Payload Extractor"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        112
+      ],
+      "name": "Validate & Extract CV Info",
+      "id": "d98a625e-1c95-4191-ac1a-5e4e1d172c04"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------- Input ----------\nconst jobId = $('Validate Inputs').first().json.job_id;\nconst data = $('Validate & Extract Cover Letter Info').first().json;\n\n// ---------- Helpers ----------\n\nfunction section(title) {\n  return `\\n${title}\\n${\"-\".repeat(title.length)}\\n`;\n}\n\nfunction list(arr) {\n  if (!arr || !Array.isArray(arr) || arr.length === 0) return \"Not available\\n\";\n  return arr.map(item => `- ${item}`).join(\"\\n\") + \"\\n\";\n}\n\nfunction value(v) {\n  return v ? `${v}\\n` : \"Not available\\n\";\n}\n\n// ---------- Build Document ----------\n\nlet content =\n`COVER LETTER SNAPSHOT\n----------------------------------------\nCANDIDATE: ${data.full_name || \"Not available\"}\nJOB ID: ${jobId}\n----------------------------------------\\n`;\n\n// Cover Letter\ncontent += section(\"COVER LETTER\");\ncontent += value(data.cover_letter_text);\n\n// Key Alignment Points\ncontent += section(\"KEY ALIGNMENT POINTS\");\ncontent += list(data.key_alignment_points);\n\n// ---------- Output ----------\n\nreturn [\n  {\n    json: {\n      job_id: jobId,\n      file_type: \"cover_letter\",\n      file_name: `Cover_Letter_Info.txt`,\n      content\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3568,
+        112
+      ],
+      "id": "5df353c7-54ad-4b4d-bb38-a209805588fe",
+      "name": "Structure Cover Letter Info Document"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------- Input ----------\nconst jobId = $('Validate Inputs').first().json.job_id;\nconst data = $('Validate & Extract CV Info').first().json;\n\n// ---------- Helpers ----------\n\nfunction section(title) {\n  return `\\n${title}\\n${\"-\".repeat(title.length)}\\n`;\n}\n\nfunction list(arr) {\n  if (!arr || !Array.isArray(arr) || arr.length === 0) return \"Not available\\n\";\n  return arr.map(item => `- ${item}`).join(\"\\n\") + \"\\n\";\n}\n\nfunction value(v) {\n  return v ? `${v}\\n` : \"Not available\\n\";\n}\n\n// ---------- Build Document ----------\n\nlet content =\n`CV SNAPSHOT\n----------------------------------------\nCANDIDATE: ${data.full_name || \"Not available\"}\nJOB ID: ${jobId}\n----------------------------------------\\n`;\n\n// Contact Info\ncontent += section(\"CONTACT INFORMATION\");\ncontent += value(data.contact_information);\n\n// Summary\ncontent += section(\"PROFESSIONAL SUMMARY\");\ncontent += value(data.professional_summary);\n\n// Education\ncontent += section(\"EDUCATION\");\ncontent += list(data.education);\n\n// Employment\ncontent += section(\"EMPLOYMENT HISTORY\");\n\nif (data.employment_history && data.employment_history.length) {\n  content += data.employment_history.map(job => {\n    return `\n${job.job_title || \"Not available\"}\n${job.company_and_location || \"Not available\"}\n${job.dates || \"Not available\"}\n${list(job.responsibilities)}\n`;\n  }).join(\"\\n\");\n} else {\n  content += \"Not available\\n\";\n}\n\n// Awards\ncontent += section(\"AWARDS AND ACHIEVEMENTS\");\ncontent += list(data.awards_and_achievements);\n\n// Skills\ncontent += section(\"SKILLS\");\n\nif (data.skills && data.skills.length) {\n  content += data.skills.map(skillGroup => {\n    return `\n${skillGroup.category || \"Not available\"}\n${list(skillGroup.items)}\n`;\n  }).join(\"\\n\");\n} else {\n  content += \"Not available\\n\";\n}\n\n// ---------- Output ----------\n\nreturn [\n  {\n    json: {\n      job_id: jobId,\n      file_type: \"cv_info\",\n      file_name: `CV_Info.txt`,\n      content\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2928,
+        112
+      ],
+      "id": "e5229ccc-05eb-4dce-b4bc-ab7b2fd5517d",
+      "name": "Structure CV Info Document"
+    },
+    {
+      "parameters": {
+        "operation": "createFromText",
+        "content": "={{ $json.content }}",
+        "name": "={{ $json.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "9baef1ec-f960-4d4c-9ffe-62547492584e",
+      "name": "Create CV File Snapshot",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3136,
+        112
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "<redacted>",
+          "name": "googleDriveOAuth2Api credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "File URL": "={{ `https://drive.google.com/file/d/${$json.id}/view` }}",
+            "File Type": "cv_info",
+            "Job": "=[\"{{ $('Validate Inputs').item.json.job_id }}\"]",
+            "File ID": "={{ $json.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "File ID",
+              "displayName": "File ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Job",
+              "displayName": "Job",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File URL",
+              "displayName": "File URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File Type",
+              "displayName": "File Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "cv_info",
+                  "value": "cv_info"
+                },
+                {
+                  "name": "cover_letter_info",
+                  "value": "cover_letter_info"
+                },
+                {
+                  "name": "profile_info",
+                  "value": "profile_info"
+                },
+                {
+                  "name": "company_info",
+                  "value": "company_info"
+                },
+                {
+                  "name": "job_info",
+                  "value": "job_info"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        3360,
+        112
+      ],
+      "id": "6adc097e-fcda-4964-8ce5-3dead69440be",
+      "name": "Create \"Document\" Record for CV",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "createFromText",
+        "content": "={{ $json.content }}",
+        "name": "={{ $json.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "43c59287-9a74-4d6f-abe2-f502b18e9491",
+      "name": "Create Cover Letter File Snapshot",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3792,
+        112
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "<redacted>",
+          "name": "googleDriveOAuth2Api credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Document"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "File URL": "={{ `https://drive.google.com/file/d/${$json.id}/view` }}",
+            "File Type": "cover_letter_info",
+            "Job": "=[\"{{ $('Validate Inputs').item.json.job_id }}\"]",
+            "File ID": "={{ $json.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "File ID",
+              "displayName": "File ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Job",
+              "displayName": "Job",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File URL",
+              "displayName": "File URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "File Type",
+              "displayName": "File Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "cv_info",
+                  "value": "cv_info"
+                },
+                {
+                  "name": "cover_letter_info",
+                  "value": "cover_letter_info"
+                },
+                {
+                  "name": "profile_info",
+                  "value": "profile_info"
+                },
+                {
+                  "name": "company_info",
+                  "value": "company_info"
+                },
+                {
+                  "name": "job_info",
+                  "value": "job_info"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        4016,
+        112
+      ],
+      "id": "ff349b1d-76bc-435f-b464-af3929ccb697",
+      "name": "Create \"Document\" Record for Cover Letter",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Job Automation Engine"
+        },
+        "table": {
+          "__rl": true,
+          "value": "<configure-in-your-instance>",
+          "mode": "list",
+          "cachedResultName": "Jobs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Validate Inputs').item.json.job_id }}",
+            "Status": "TAILORED"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Profile",
+              "displayName": "Profile",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Link",
+              "displayName": "Job Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Linkedin",
+                  "value": "Linkedin"
+                },
+                {
+                  "name": "Indeed",
+                  "value": "Indeed"
+                },
+                {
+                  "name": "Company Career Page",
+                  "value": "Company Career Page"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "LISTED",
+                  "value": "LISTED"
+                },
+                {
+                  "name": "DETAILED",
+                  "value": "DETAILED"
+                },
+                {
+                  "name": "SCORED",
+                  "value": "SCORED"
+                },
+                {
+                  "name": "REJECTED",
+                  "value": "REJECTED"
+                },
+                {
+                  "name": "COMPANY_ENRICHED",
+                  "value": "COMPANY_ENRICHED"
+                },
+                {
+                  "name": "CONTACTS_FOUND",
+                  "value": "CONTACTS_FOUND"
+                },
+                {
+                  "name": "TAILORED",
+                  "value": "TAILORED"
+                },
+                {
+                  "name": "READY_TO_APPLY",
+                  "value": "READY_TO_APPLY"
+                },
+                {
+                  "name": "APPLIED",
+                  "value": "APPLIED"
+                },
+                {
+                  "name": "",
+                  "value": ""
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Responsibilities",
+              "displayName": "Responsibilities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Employment Type",
+              "displayName": "Employment Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Seniority Level",
+              "displayName": "Seniority Level",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Type",
+              "displayName": "Application Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Application Link",
+              "displayName": "Application Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder ID",
+              "displayName": "Google Drive Folder ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Google Drive Folder Link",
+              "displayName": "Google Drive Folder Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Overall Fit Score",
+              "displayName": "Overall Fit Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Skill Alignment Score",
+              "displayName": "Skill Alignment Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Risk",
+              "displayName": "Visa Risk",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Visa Block",
+              "displayName": "Visa Block",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Scoring Reason",
+              "displayName": "Scoring Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Contacts",
+              "displayName": "Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        4240,
+        112
+      ],
+      "id": "afe56236-3543-4e44-8983-ebfae7991c6c",
+      "name": "Update \"Job\" Record",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "<redacted>",
+          "name": "airtableTokenApi credential"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "Get \"Job Info\" Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get \"Profile\" Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get \"Company Info\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"Profile\" Record": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Main CV Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Main CV Info": {
+      "main": [
+        [
+          {
+            "node": "Set Main CV Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Job, Company and CV Info": {
+      "main": [
+        [
+          {
+            "node": "CV Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"Job Info\" Record": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Job Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Job Info": {
+      "main": [
+        [
+          {
+            "node": "Set Job Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get \"Company Info\" Record": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Company Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Job Info": {
+      "main": [
+        [
+          {
+            "node": "Merge Job, Company and CV Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Main CV Info": {
+      "main": [
+        [
+          {
+            "node": "Merge Job, Company and CV Info",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Set Company Info": {
+      "main": [
+        [
+          {
+            "node": "Merge Job, Company and CV Info",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Retrieve Company Info": {
+      "main": [
+        [
+          {
+            "node": "Set Company Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV Agent": {
+      "main": [
+        [
+          {
+            "node": "Validate & Extract CV Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cover Letter Agent": {
+      "main": [
+        [
+          {
+            "node": "Validate & Extract Cover Letter Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Extract Cover Letter Info": {
+      "main": [
+        [
+          {
+            "node": "Structure CV Info Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Extract CV Info": {
+      "main": [
+        [
+          {
+            "node": "Cover Letter Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure CV Info Document": {
+      "main": [
+        [
+          {
+            "node": "Create CV File Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create CV File Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Create \"Document\" Record for CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create \"Document\" Record for CV": {
+      "main": [
+        [
+          {
+            "node": "Structure Cover Letter Info Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Cover Letter Info Document": {
+      "main": [
+        [
+          {
+            "node": "Create Cover Letter File Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Cover Letter File Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Create \"Document\" Record for Cover Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create \"Document\" Record for Cover Letter": {
+      "main": [
+        [
+          {
+            "node": "Update \"Job\" Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "<redacted>",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "<redacted>"
+  },
+  "id": "l6wDOYS7gF2zw3Ci",
+  "tags": []
+}
